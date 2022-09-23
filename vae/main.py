@@ -6,7 +6,8 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
-
+from nni.compression.pytorch.speedup import ModelSpeedup
+from nni.compression.pytorch.pruning import L1NormPruner
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
@@ -129,6 +130,24 @@ def test(epoch):
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
+def model_prune():
+  config_list = [{
+    'sparsity_per_layer': 0.2,
+    'op_types': ['Linear']
+  }, {
+    'exclude': True,
+    'op_names': ['fc4']
+  }]
+  pruner = L1NormPruner(model, config_list)
+  print(model)
+  _, masks = pruner.compress()
+  for name, mask in masks.items():
+    print(name, ' sparsity : ', '{:.2}'.format(mask['weight'].sum() / mask['weight'].numel()))
+  pruner._unwrap_model()
+  ModelSpeedup(model, torch.rand(3, 1, 28, 28).to(device), masks).speedup_model()
+  print(model)
+  
+  
 if __name__ == "__main__":
     for epoch in range(1, args.epochs + 1):
         train(epoch)
@@ -138,3 +157,4 @@ if __name__ == "__main__":
             sample = model.decode(sample).cpu()
             save_image(sample.view(64, 1, 28, 28),
                        'results/sample_' + str(epoch) + '.png')
+    model_prune()
