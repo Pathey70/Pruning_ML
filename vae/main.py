@@ -24,14 +24,14 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-use_mps = not args.no_mps and torch.backends.mps.is_available()
+#use_mps = not args.no_mps and torch.backends.mps.is_available()
 
 torch.manual_seed(args.seed)
 
 if args.cuda:
     device = torch.device("cuda")
-elif use_mps:
-    device = torch.device("mps")
+#elif use_mps:
+#    device = torch.device("mps")
 else:
     device = torch.device("cpu")
 
