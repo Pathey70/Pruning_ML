@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 from nni.compression.pytorch.speedup import ModelSpeedup
-from nni.compression.pytorch.pruning import L1NormPruner
+from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
