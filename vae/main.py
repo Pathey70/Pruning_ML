@@ -153,7 +153,7 @@ def model_prune():
   for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)
-  end_time_aftre_pruning = time.time()
+  end_time_after_pruning = time.time()
   print("\n","Model execution time after pruning",str(end_time_after_pruning - start_time_after_pruning))
   
   
