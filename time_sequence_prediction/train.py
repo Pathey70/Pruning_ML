@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from nni.compression.pytorch.speedup import ModelSpeedup
+from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner
 
 class Sequence(nn.Module):
     def __init__(self):
@@ -35,6 +37,22 @@ class Sequence(nn.Module):
         outputs = torch.cat(outputs, dim=1)
         return outputs
 
+def model_prune():
+  config_list = [{
+    'sparsity_per_layer': 0.2,
+    'op_types': ['Linear']
+  }, {
+    'exclude': True,
+    'op_names': ['fc4']
+  }]
+  pruner = L1NormPruner(model, config_list)
+  print(model)
+  _, masks = pruner.compress()
+  for name, mask in masks.items():
+    print(name, ' sparsity : ', '{:.2}'.format(mask['weight'].sum() / mask['weight'].numel()))
+  pruner._unwrap_model()
+  ModelSpeedup(model, torch.rand(3, 1, 28, 28).to(device), masks).speedup_model()
+  print(model)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -73,18 +91,19 @@ if __name__ == '__main__':
             loss = criterion(pred[:, :-future], test_target)
             print('test loss:', loss.item())
             y = pred.detach().numpy()
+        model_prune()
         # draw the result
-        plt.figure(figsize=(30,10))
-        plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30)
-        plt.xlabel('x', fontsize=20)
-        plt.ylabel('y', fontsize=20)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        def draw(yi, color):
-            plt.plot(np.arange(input.size(1)), yi[:input.size(1)], color, linewidth = 2.0)
-            plt.plot(np.arange(input.size(1), input.size(1) + future), yi[input.size(1):], color + ':', linewidth = 2.0)
-        draw(y[0], 'r')
-        draw(y[1], 'g')
-        draw(y[2], 'b')
-        plt.savefig('predict%d.pdf'%i)
-        plt.close()
+#         plt.figure(figsize=(30,10))
+#         plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30)
+#         plt.xlabel('x', fontsize=20)
+#         plt.ylabel('y', fontsize=20)
+#         plt.xticks(fontsize=20)
+#         plt.yticks(fontsize=20)
+#         def draw(yi, color):
+#             plt.plot(np.arange(input.size(1)), yi[:input.size(1)], color, linewidth = 2.0)
+#             plt.plot(np.arange(input.size(1), input.size(1) + future), yi[input.size(1):], color + ':', linewidth = 2.0)
+#         draw(y[0], 'r')
+#         draw(y[1], 'g')
+#         draw(y[2], 'b')
+#         plt.savefig('predict%d.pdf'%i)
+#         plt.close()
