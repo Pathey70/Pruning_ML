@@ -8,6 +8,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 from nni.compression.pytorch.speedup import ModelSpeedup
 from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner
+import time
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
@@ -144,11 +145,21 @@ def model_prune():
   for name, mask in masks.items():
     print(name, ' sparsity : ', '{:.2}'.format(mask['weight'].sum() / mask['weight'].numel()))
   pruner._unwrap_model()
-  ModelSpeedup(model, torch.rand(3, 1, 28, 28).to(device), masks).speedup_model()
+  ModelSpeedup(model, torch.rand(64, 1, 28, 28).to(device), masks).speedup_model()
   print(model)
+  
+  start_time_after_pruning = time.time()
+  optimizer_new = optim.Adam(model.parameters(), lr=1e-3)
+  for epoch in range(1, args.epochs + 1):
+    train(epoch)
+    test(epoch)
+  end_time_aftre_pruning = time.time()
+  print("\n","Model execution time after pruning",str(end_time_after_pruning - start_time_after_pruning))
+  
   
   
 if __name__ == "__main__":
+    start_time_before_pruning = time.time()
     for epoch in range(1, args.epochs + 1):
         train(epoch)
         test(epoch)
@@ -157,4 +168,6 @@ if __name__ == "__main__":
             sample = model.decode(sample).cpu()
             save_image(sample.view(64, 1, 28, 28),
                        'results/sample_' + str(epoch) + '.png')
+    end_time_before_pruning = time.time()
+    print("\n","Model execution time before pruning",str(end_time_before_pruning - start_time_before_pruning))
     model_prune()
