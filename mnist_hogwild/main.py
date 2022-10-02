@@ -7,7 +7,7 @@ import torch.multiprocessing as mp
 from torch.utils.data.sampler import Sampler
 from torchvision import datasets, transforms
 from nni.compression.pytorch.speedup import ModelSpeedup
-from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner
+from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner, L2NormPruner
 import time
 
 from train import train, test
@@ -62,7 +62,7 @@ def model_prune():
     'exclude': True,
     'op_names': ['fc2']
   }]
-  pruner = L1NormPruner(model, config_list)
+  pruner = L2NormPruner(model, config_list)
   print(model)
   _, masks = pruner.compress()
   for name, mask in masks.items():
