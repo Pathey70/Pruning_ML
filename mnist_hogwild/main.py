@@ -6,6 +6,9 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 from torch.utils.data.sampler import Sampler
 from torchvision import datasets, transforms
+from nni.compression.pytorch.speedup import ModelSpeedup
+from nni.algorithms.compression.v2.pytorch.pruning import L1NormPruner
+import time
 
 from train import train, test
 
@@ -52,6 +55,38 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
+def model_prune():
+  config_list = [{
+    'sparsity_per_layer': 0.4,
+    'op_types': ['Linear']
+  }, {
+    'exclude': True,
+    'op_names': ['fc2']
+  }]
+  pruner = L1NormPruner(model, config_list)
+  print(model)
+  _, masks = pruner.compress()
+  for name, mask in masks.items():
+    print(name, ' sparsity : ', '{:.2}'.format(mask['weight'].sum() / mask['weight'].numel()))
+  pruner._unwrap_model()
+  ModelSpeedup(model, torch.rand(3, 1, 28, 28).to(device), masks).speedup_model()
+  print(model)
+  
+  processes = []
+  start_time_after_pruning = time.time()
+  for rank in range(args.num_processes):
+      p = mp.Process(target=train, args=(rank, args, model, device,
+                                           dataset1, kwargs))
+      # We first train the model across `num_processes` processes
+      p.start()
+      processes.append(p)
+  for p in processes:
+      p.join()
+
+    # Once training is complete, we can test the model
+  test(args, model, device, dataset2, kwargs)
+  end_time_after_pruning = time.time()
+  print("\n","Model execution time after pruning",str(end_time_after_pruning - start_time_after_pruning))
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -87,6 +122,7 @@ if __name__ == '__main__':
     model.share_memory() # gradients are allocated lazily, so they are not shared here
 
     processes = []
+    start_time_before_pruning = time.time()
     for rank in range(args.num_processes):
         p = mp.Process(target=train, args=(rank, args, model, device,
                                            dataset1, kwargs))
@@ -98,3 +134,6 @@ if __name__ == '__main__':
 
     # Once training is complete, we can test the model
     test(args, model, device, dataset2, kwargs)
+    end_time_before_pruning = time.time()
+    print("\n","Model execution time before pruning",str(end_time_before_pruning - start_time_before_pruning))
+    model_prune()
