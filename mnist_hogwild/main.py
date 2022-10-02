@@ -28,8 +28,8 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
-parser.add_argument('--num-processes', type=int, default=2, metavar='N',
-                    help='how many training processes to use (default: 2)')
+parser.add_argument('--num-processes', type=int, default=1, metavar='N',
+                    help='how many training processes to use (default: 1)')
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--mps', action='store_true', default=False,
@@ -44,24 +44,26 @@ class Net(nn.Module):
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
+        self.fc2 = nn.Linear(320, 50)
+        self.fc3 = nn.Linear(50, 10)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, 320)
         x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+        x = self.fc3(x)
         return F.log_softmax(x, dim=1)
 
 def model_prune():
   config_list = [{
-    'sparsity_per_layer': 0.4,
+    'sparsity_per_layer': 0.5,
     'op_types': ['Linear']
   }, {
     'exclude': True,
-    'op_names': ['fc2']
+    'op_names': ['fc3']
   }]
   pruner = L1NormPruner(model, config_list)
   print(model)
